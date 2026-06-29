@@ -3,3 +3,4 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     console.log("收到 toggle 訊息");
     }
 });
+console.log("content script loaded");
