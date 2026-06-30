@@ -1,69 +1,88 @@
+let state = {
+    isOn: false,
+    opacity: 0.85,
+    animation: "pulse"
+};
+
 let mask = null;
-let isOn = false;
+let ani = null;
 
-//創造遮罩函式
-function createMask() {
-    mask = document.createElement("div");
-    mask.id = "screen-veil-mask";
-    mask.innerText = "SCREEN VEIL";
-    document.body.appendChild(mask);
+function setState(newState) {
+    state.isOn = newState;
+    render();
 
-    requestAnimationFrame(() => {
-        mask.style.opacity = "1";
+    chrome.storage.local.set({
+        screenVeil: state
     });
 }
 
-//關閉遮罩函式
-function removeMask() {
-    if (!mask) return;
-
-    mask.style.opacity = "0";
-
-    setTimeout(() => {
-        if (mask) {
-            mask.remove();
-            mask = null;
-        }
-    }, 250);
-}
-
-//更新狀態並同步 UI + storage
-function setState(state) {
-    isOn = state;
-
-    if (isOn) {
+function render() {
+    if (state.isOn) {
         if (!mask) createMask();
+        if (!ani) createAnimation();
     } else {
         removeMask();
+        removeAnimation();
     }
-    // 存到 chrome storage
-    chrome.storage.local.set({ screenVeil: isOn });
+}
+
+function createMask() {
+    mask = document.createElement("div");
+    mask.id = "screen-veil-mask";
+    document.body.appendChild(mask);
+
+    requestAnimationFrame(() => {
+        mask.style.opacity = state.opacity ?? 0.85;
+    });
+}
+
+function removeMask() {
+    if (!mask) return;
+    mask.remove();
+    mask = null;
+}
+
+function createAnimation() {
+    ani = document.createElement("div");
+    ani.id = "screen-veil-animation";
+    document.body.appendChild(ani);
+
+    if (state.animation === "pulse") {
+        ani.style.display = "block";
+    }
+}
+
+function removeAnimation() {
+    if (!ani) return;
+    ani.remove();
+    ani = null;
 }
 
 // ESC 關閉
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && isOn) {
+    if (e.key === "Escape" && state.isOn) {
         setState(false);
     }
 });
 
-//接收popup指令判斷回傳
+// popup 通訊
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "toggle") {
-        setState(!isOn);
-        sendResponse({ isOn });
+        setState(!state.isOn);
+        sendResponse({ isOn: state.isOn });
     }
 
     if (msg.action === "getState") {
-        sendResponse({ isOn });
+        sendResponse({ isOn: state.isOn });
     }
 });
 
-// 初始化：讀取 storage 狀態
+// 初始化
 chrome.storage.local.get(["screenVeil"], (result) => {
     if (result.screenVeil) {
-        setState(true);
+        state = result.screenVeil;
     }
+    render();
 
     console.log("content script loaded");
 });
