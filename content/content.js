@@ -3,7 +3,8 @@ let state = {
     opacity: 0.85,
     animation: "pulse",
     duration: 5,     // 使用者選擇的持續分鐘數(預設5分鐘)
-    endTime: null    // 這次開啟預計結束的絕對時間戳(ms)，沒開啟時為 null
+    endTime: null ,   // 這次開啟預計結束的絕對時間戳(ms)，沒開啟時為 null
+    visualMode: "breathe" // 視覺模式，預設為呼吸燈模式，另一個選項是貓咪模式
 };
 
 let mask = null;
@@ -117,30 +118,53 @@ function removeMask() {
 //製作&移除動畫 同遮罩邏輯 抓css進退場動畫
 function createAnimation() {
     if (ani) return;
-
     ani = document.createElement("div");
     ani.id = "screen-veil-animation";
+    let child;
+    if (state.visualMode === "breathe") {
+        child = document.createElement("div");
+        child.className = "pulse-circle";
 
-    const circle = document.createElement("div");
-    circle.className = "pulse-circle";
-
-    ani.appendChild(circle);
+        const ring = document.createElement("div");
+        ring.className = "spinner-ring";
+        child.appendChild(ring);
+    }
+    if (state.visualMode === "cloud") {
+        child = document.createElement("div");
+        child.className = "cloud-wrap";
+        child.innerHTML = `<svg viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="340" cy="270" rx="150" ry="14" fill="#e8e3da"/>
+    <g class="cloud-body">
+    <path d="M250 220 C220 220, 200 198, 210 172 C216 155, 235 148, 250 152 C252 128, 275 110, 300 112 C320 114, 337 128, 342 148 C358 130, 388 128, 405 145 C418 158, 418 178, 405 190 C425 192, 440 208, 435 226 C430 244, 408 252, 390 244 C378 250, 260 250, 250 244 C235 240, 232 226, 250 220 Z"
+            fill="#eef0f3" stroke="#a9adb5" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M285 186 Q295 194, 305 186" fill="none" stroke="#6b6e75" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M335 186 Q345 194, 355 186" fill="none" stroke="#6b6e75" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M310 205 Q320 213, 330 205" fill="none" stroke="#6b6e75" stroke-width="2" stroke-linecap="round"/>
+    <ellipse cx="278" cy="205" rx="10" ry="6" fill="#f3c9c9" opacity="0.7"/>
+    <ellipse cx="362" cy="205" rx="10" ry="6" fill="#f3c9c9" opacity="0.7"/>
+    </g>
+    <g class="cloud-zzz" style="animation-delay:0s"><text x="410" y="130" fill="#9a9da3" font-size="18" font-family="sans-serif" font-weight="600">z</text></g>
+    <g class="cloud-zzz" style="animation-delay:1.05s"><text x="432" y="105" fill="#9a9da3" font-size="24" font-family="sans-serif" font-weight="600">Z</text></g>
+    <g class="cloud-zzz" style="animation-delay:2.1s"><text x="460" y="75" fill="#9a9da3" font-size="30" font-family="sans-serif" font-weight="600">Z</text></g>
+    </svg>`;
+    }
+    ani.appendChild(child);
     document.body.appendChild(ani);
-
     requestAnimationFrame(() => {
         ani.classList.add("show");
     });
 }
-function removeAnimation() {
+function removeAnimation(callback) {
     if (!ani) return;
-
     ani.classList.remove("show");
-
     ani.addEventListener("transitionend", () => {
         if (ani) {
             ani.remove();
             ani = null;
         }
+        if (callback) {
+            callback();
+            }
     }, { once: true });
 }
 
@@ -171,7 +195,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "getState") {
         sendResponse(state);
     }
+    //如果是變更動作(visualMode)
+    if (msg.action === "setVisualMode") {
+        setState({ visualMode: msg.visualMode });
+        switchVisualMode();
+        sendResponse({ visualMode: state.visualMode });
+
+    }
 }); 
+
+function switchVisualMode() {
+    if (!ani) {
+        return;
+    }
+    removeAnimation(function() {
+        createAnimation();
+    });
+}
+
 
 // init抓本地儲存的狀態 有的話就覆蓋掉state，然後重新渲染畫面
 chrome.storage.local.get(["screenVeil"], (result) => {

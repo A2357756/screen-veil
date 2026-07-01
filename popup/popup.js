@@ -3,10 +3,12 @@ const switchEl = document.getElementById("switch");
 const statusText = document.getElementById("status");
 const durationEl = document.getElementById("duration");
 const durationValueEl = document.getElementById("duration-value");
+const modeSwitchEl = document.getElementById("mode-switch");
 
 let isOn = false;
 let endTime = null;
 let countdownTimer = null;
+let visualMode = "breathe";
 
 // 拖拉桿時即時更新旁邊顯示的數字
 durationEl.addEventListener("input", () => {
@@ -30,18 +32,22 @@ function syncState() {
             isOn = res.isOn;
             endTime = res.endTime || null;
 
+            if (res.visualMode) {
+            visualMode = res.visualMode;
+            }
+
             // 開啟時把拉桿同步成目前正在跑的分鐘數，關閉時保留使用者上次選的值
             if (res.duration) {
                 durationEl.value = String(res.duration);
                 durationValueEl.textContent = String(res.duration);
             }
-
+            updateModeUI()
             updateUI();
         });
     });
 }
 
-// 點擊開關 → 切換狀態
+// 點擊開關 → 切換開關
 switchEl.addEventListener("click", () => {
 
     chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
@@ -50,17 +56,35 @@ switchEl.addEventListener("click", () => {
         const msg = isOn
             ? { action: "toggle" }
             : { action: "toggle", duration: parseInt(durationEl.value, 10) };
-
         chrome.tabs.sendMessage(tab.id, msg, (res) => {
-
             if (chrome.runtime.lastError || !res) return;
-
             isOn = res.isOn;
             endTime = res.endTime || null;
             updateUI();
         });
     });
 });
+
+//切換mode
+modeSwitchEl.addEventListener("click", () => {
+    const newMode = visualMode === "breathe" ? "cloud" : "breathe";
+
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        chrome.tabs.sendMessage(tab.id, { action: "setVisualMode", visualMode: newMode }, (res) => {
+            if (chrome.runtime.lastError || !res) return;
+            visualMode = res.visualMode;
+            updateModeUI();
+        });
+    });
+});
+
+function updateModeUI() {
+    if (visualMode === "cloud") {
+        modeSwitchEl.classList.add("on");
+    } else {
+        modeSwitchEl.classList.remove("on");
+    }
+}
 
 // 更新 UI 顯示
 function updateUI() {
