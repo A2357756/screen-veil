@@ -1,40 +1,62 @@
 let mask = null;
-let isOn = false;
+let ani = null;
+let state = {
+    isOn: false,
+    opacity: 0.85,
+    animation: "pulse"
+};
+
 
 //創造遮罩函式
 function createMask() {
     mask = document.createElement("div");
     mask.id = "screen-veil-mask";
-    mask.innerText = "SCREEN VEIL";
     document.body.appendChild(mask);
 
     requestAnimationFrame(() => {
-        mask.style.opacity = "1";
+        mask.style.opacity = state.opacity;
     });
 }
+
 
 //關閉遮罩函式
 function removeMask() {
     if (!mask) return;
+    mask.remove();
+    mask = null;
+}
 
-    mask.style.opacity = "0";
 
-    setTimeout(() => {
-        if (mask) {
-            mask.remove();
-            mask = null;
-        }
-    }, 250);
+//動畫遮罩製造&移除
+function createAnimation() {
+    ani = document.createElement("div");
+    ani.id = "screen-veil-animation";
+    document.body.appendChild(ani);
+}
+
+function removeAnimation() {
+    if (!ani) return;
+    ani.remove();
+    ani = null;
 }
 
 //更新狀態並同步 UI + storage
-function setState(state) {
-    isOn = state;
+function setState(newState) {
+    state.isOn = newState;
 
-    if (isOn) {
+    render();
+
+    chrome.storage.local.set({
+        screenVeil: state
+    });
+}
+function render() {
+    if (state.isOn) {
         if (!mask) createMask();
+        if (!ani) createAnimation();
     } else {
         removeMask();
+        removeAnimation();
     }
     // 存到 chrome storage
     chrome.storage.local.set({ screenVeil: isOn });
@@ -50,20 +72,20 @@ document.addEventListener("keydown", (e) => {
 //接收popup指令判斷回傳
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "toggle") {
-        setState(!isOn);
-        sendResponse({ isOn });
+        setState(!state.isOn);
+        sendResponse({ isOn: state.isOn });
     }
 
     if (msg.action === "getState") {
-        sendResponse({ isOn });
+        sendResponse({ isOn: state.isOn });
     }
 });
 
 // 初始化：讀取 storage 狀態
 chrome.storage.local.get(["screenVeil"], (result) => {
     if (result.screenVeil) {
-        setState(true);
+        state = result.screenVeil;
     }
 
-    console.log("content script loaded");
+    render();
 });

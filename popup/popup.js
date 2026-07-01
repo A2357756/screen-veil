@@ -4,6 +4,7 @@ const statusText = document.getElementById("status");
 
 let isOn = false;
 
+
 // 問 content script 取得目前狀態
 async function syncState() {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -40,5 +41,7 @@ function updateUI() {
         statusText.textContent = "Status: OFF";
     }
 }
+
+console.log(res);
 
 syncState();
